@@ -3,17 +3,12 @@ from datetime import datetime
 import pandas as pd
 
 
-# -------------------------
-# LIMPIEZA TEXTO
-# -------------------------
 def limpiar_texto(texto):
-    texto = texto.replace("\u202f", " ")
-    return texto
+    if texto is None:
+        return ""
+    return texto.replace("\u202f", " ")
 
 
-# -------------------------
-# FILTRO POR FECHA ENVÍO
-# -------------------------
 def filtrar_por_fecha_envio(texto, fecha_minima):
     bloques = re.split(r"\n(?=\d{1,2}/\d{1,2}/\d{4},)", texto)
     resultado = []
@@ -28,9 +23,6 @@ def filtrar_por_fecha_envio(texto, fecha_minima):
     return "\n".join(resultado)
 
 
-# -------------------------
-# RANGO FECHAS TURNO
-# -------------------------
 def obtener_rango_fechas(texto):
     fechas = re.findall(
         r"TURNO\s+(?:DIA|NOCHE)\s+(\d{1,2}/\d{1,2}/\d{4})",
@@ -42,13 +34,9 @@ def obtener_rango_fechas(texto):
         return None, None
 
     fechas_dt = [datetime.strptime(f, "%d/%m/%Y") for f in fechas]
-
     return min(fechas_dt), max(fechas_dt)
 
 
-# -------------------------
-# FILTRO POR FECHA TURNO
-# -------------------------
 def filtrar_por_fecha(texto, fecha_ini, fecha_fin):
     bloques = re.split(r"\n(?=\d{1,2}/\d{1,2}/\d{4},)", texto)
     resultado = []
@@ -69,16 +57,28 @@ def filtrar_por_fecha(texto, fecha_ini, fecha_fin):
 
 
 # -------------------------
-# EXTRAER NÚMERO
+# EXTRAER NÚMEROS
 # -------------------------
 def extraer_numero(texto, campo):
     match = re.search(fr"{campo}[:\s]*([\d\.,]+)", texto, re.IGNORECASE)
-    if match:
+
+    if match and match.group(1):
         valor = match.group(1).replace(",", ".")
         try:
             return float(valor)
         except:
             return None
+
+    return None
+
+
+# -------------------------
+# EXTRAER TEXTO DE UNA LÍNEA
+# -------------------------
+def extraer_linea(texto, campo):
+    match = re.search(fr"{campo}[:\s]*(.*)", texto)
+    if match:
+        return match.group(1).split("\n")[0].strip()
     return None
 
 
@@ -93,11 +93,9 @@ def procesar(texto):
 
     for bloque in bloques:
 
-        # PROYECTO
         proyecto_match = re.search(r"PROYECTO\s+(.+)", bloque)
         proyecto = proyecto_match.group(1).strip() if proyecto_match else None
 
-        # TURNO + FECHA
         turno_match = re.search(
             r"TURNO\s+(DIA|NOCHE)\s+(\d{1,2}/\d{1,2}/\d{4})",
             bloque,
@@ -110,7 +108,6 @@ def procesar(texto):
         turno = turno_match.group(1).upper()
         fecha = turno_match.group(2)
 
-        # DIVIDIR POR SONDAS
         sondas = re.split(r"\n(?=SONDA)", bloque)
 
         for s in sondas:
@@ -118,46 +115,43 @@ def procesar(texto):
             if "SONDA" not in s:
                 continue
 
-            # SONDA
-            sonda_match = re.search(r"SONDA\s+([A-Za-z0-9\-]+)", s)
-            sonda = sonda_match.group(1) if sonda_match else None
+            sonda = extraer_linea(s, "SONDA")
 
             # 🟢 POZO
-            pozo_match = re.search(r"Pozo[:\s]*([A-Za-z0-9\-]+)", s, re.IGNORECASE)
-            pozo = pozo_match.group(1) if pozo_match else None
+            pozo = extraer_linea(s, "Pozo")
 
             # NUMÉRICOS
             fondo_inicial = extraer_numero(s, "Fondo Inicial")
             fondo_final = extraer_numero(s, "Fondo Final")
             programado = extraer_numero(s, "Programado")
-            perforado = extraer_numero(s, "Perforado|Avance")
 
-            # 🟢 RECOMENDACIÓN (CORREGIDO)
-            recomendacion_match = re.search(r"Recomendación[:\s]*(.*)", s)
+            perforado = extraer_numero(s, "Perforado")
+            if perforado is None:
+                perforado = extraer_numero(s, "Avance")
 
-            if recomendacion_match:
-                recomendacion = recomendacion_match.group(1).strip()
-                recomendacion = recomendacion.split("\n")[0].strip()
+            # 🟢 RECOMENDACIÓN (SOLUCIÓN CLAVE)
+            recomendacion = None
+            match_rec = re.search(r"Recomendación[:\s]*(.*)", s)
 
-                if recomendacion == "":
-                    recomendacion = None
-            else:
-                recomendacion = None
+            if match_rec:
+                linea = match_rec.group(1).split("\n")[0].strip()
 
-            # OTROS CAMPOS
-            azimuth_match = re.search(r"Azimuth[:\s]*(.*)", s)
-            azimuth = azimuth_match.group(1).split("\n")[0].strip() if azimuth_match else None
+                # 🚫 si la línea es otro campo → ignorar
+                if not re.match(
+                    r"(Pozo|Fondo|Programado|Perforado|Azimuth|Inclinación|Diámetro|Recuperación)",
+                    linea,
+                    re.IGNORECASE
+                ):
+                    if linea != "":
+                        recomendacion = linea
 
-            inclinacion_match = re.search(r"Inclinación[:\s]*(.*)", s)
-            inclinacion = inclinacion_match.group(1).split("\n")[0].strip() if inclinacion_match else None
+            # CAMPOS SIMPLES
+            azimuth = extraer_linea(s, "Azimuth")
+            inclinacion = extraer_linea(s, "Inclinación")
+            diametro = extraer_linea(s, "Diámetro")
+            recuperacion = extraer_linea(s, "Recuperación")
 
-            diametro_match = re.search(r"Diámetro[:\s]*(.*)", s)
-            diametro = diametro_match.group(1).split("\n")[0].strip() if diametro_match else None
-
-            recuperacion_match = re.search(r"Recuperación[:\s]*(.*)", s)
-            recuperacion = recuperacion_match.group(1).split("\n")[0].strip() if recuperacion_match else None
-
-            # OBSERVACIONES (puede ser multilínea)
+            # OBSERVACIONES
             observaciones_match = re.search(r"Observaciones:\s*(.*)", s, re.DOTALL)
             observaciones = observaciones_match.group(1).strip() if observaciones_match else None
 
