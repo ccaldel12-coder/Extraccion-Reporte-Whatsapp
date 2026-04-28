@@ -103,13 +103,10 @@ if archivo:
 
         df = procesar(texto_filtrado)
 
-        # asegurar columnas
         df["Perforado"] = pd.to_numeric(df["Perforado"], errors="coerce").fillna(0)
         df["Programado"] = pd.to_numeric(df["Programado"], errors="coerce").fillna(0)
 
-        # -------------------------
         # 🚦 SEMÁFORO
-        # -------------------------
         def semaforo(row):
             if row["Perforado"] == 0:
                 return "🔴 Detenido"
@@ -149,14 +146,10 @@ if st.session_state.df is not None:
     if turno_sel != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Turno"] == turno_sel]
 
-    # -------------------------
     # TABLA
-    # -------------------------
     st.dataframe(df_filtrado, use_container_width=True)
 
-    # -------------------------
     # KPI
-    # -------------------------
     total = df_filtrado["Perforado"].sum()
 
     st.markdown(
@@ -164,29 +157,37 @@ if st.session_state.df is not None:
         unsafe_allow_html=True
     )
 
-    # -------------------------
     # RESUMEN SEMÁFORO
-    # -------------------------
     st.subheader("🚦 Resumen Operacional")
-
-    resumen = df_filtrado["Estado"].value_counts()
-
-    st.write(resumen)
+    st.write(df_filtrado["Estado"].value_counts())
 
     # -------------------------
-    # EXPORTAR
+    # EXPORTAR EXCEL
     # -------------------------
     buffer = BytesIO()
 
     columnas_orden = [
-        "Fecha","Proyecto","Turno","Sonda","Pozo",
+        "Fecha",
+        "Proyecto",
+        "Turno",
+        "Sonda",
+        "Pozo",
         "Estado",
-        "Programado","Perforado"
+        "Programado",
+        "Fondo Inicial",   # 👈 NUEVO ORDEN
+        "Fondo Final",     # 👈 NUEVO ORDEN
+        "Perforado",
+        "Azimuth",
+        "Inclinación",
+        "Diámetro",
+        "Recuperación (%)",
+        "Recomendación",
+        "Observaciones"
     ]
 
     columnas_orden = [c for c in columnas_orden if c in df_filtrado.columns]
 
-    df_export = df_filtrado[columnas_orden]
+    df_export = df_filtrado[columnas_orden].copy()
 
     wb = Workbook()
     ws = wb.active
