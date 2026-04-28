@@ -85,7 +85,7 @@ st.image("encabezado.jpg", width=900)
 st.title("📊 Reportes de Perforación")
 
 # 🟢 PRUEBA DE VERSIÓN (CLAVE PARA DEBUG STREAMLIT)
-st.write("VERSION NUEVA OK")
+st.write("Suba el archivo txt descargado desde whatsapp del celular")
 
 # -------------------------
 # CARGA ARCHIVO
