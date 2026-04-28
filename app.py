@@ -84,6 +84,9 @@ st.image("encabezado.jpg", width=900)
 
 st.title("📊 Reportes de Perforación")
 
+# 🟢 PRUEBA DE VERSIÓN (CLAVE PARA DEBUG STREAMLIT)
+st.write("VERSION NUEVA OK")
+
 # -------------------------
 # CARGA ARCHIVO
 # -------------------------
@@ -187,14 +190,10 @@ if st.session_state.df is not None:
         if turno_sel != "Todos":
             df_filtrado = df_filtrado[df_filtrado["Turno"] == turno_sel]
 
-        # -------------------------
         # TABLA
-        # -------------------------
         st.dataframe(df_filtrado, use_container_width=True)
 
-        # -------------------------
         # KPI
-        # -------------------------
         if not df_filtrado.empty:
             total = df_filtrado["Perforado"].sum()
 
@@ -203,9 +202,7 @@ if st.session_state.df is not None:
                 unsafe_allow_html=True
             )
 
-        # -------------------------
         # EXPORTAR EXCEL
-        # -------------------------
         buffer = BytesIO()
 
         columnas_orden = [
@@ -213,7 +210,7 @@ if st.session_state.df is not None:
             "Proyecto",
             "Turno",
             "Sonda",
-            "Pozo",  # 👈 NUEVO CAMPO
+            "Pozo",
             "Recomendación",
             "Programado",
             "Fondo Inicial",
